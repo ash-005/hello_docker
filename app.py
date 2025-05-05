@@ -1,12 +1,16 @@
-from flask import Flask, render_template, redirect, url_for, send_file, jsonify
+from flask import Flask, render_template, redirect, url_for, send_file, jsonify, request
 import speedtest
 import csv
 import os
 import time
 from datetime import datetime
 from threading import Thread
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
+limiter = Limiter(app, key_func=get_remote_address)
+
 RESULTS_FILE = "results.csv"
 is_running = False
 
@@ -37,7 +41,7 @@ def run_speed_logger():
             print(f"Logged: {res}")  # Optional: for debugging
             
             # Now sleep to prevent overlapping tests
-            time.sleep(15)  # ← adjust this to your vibe
+            time.sleep(30)  # ← adjust this to your vibe
 
         except Exception as e:
             print("Speedtest error:", e)
@@ -50,7 +54,9 @@ def index():
         rows = list(reader)
     return render_template("index.html", results=rows[::-1], running=is_running)
 
+# Apply rate limiting to the /start and /stop routes
 @app.route("/start")
+@limiter.limit("1 per minute")  # Allow 1 request per minute per IP
 def start():
     global is_running
     if not is_running:
@@ -61,8 +67,8 @@ def start():
         print("Speed test already running")
     return redirect(url_for("index"))
 
-
 @app.route("/stop") 
+@limiter.limit("1 per minute")  # Allow 1 request per minute per IP
 def stop():
     global is_running
     is_running = False
@@ -71,7 +77,6 @@ def stop():
 @app.route("/download")
 def download():
     return send_file(RESULTS_FILE, as_attachment=True)
-
 
 @app.route("/results")
 def get_results():
