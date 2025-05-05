@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+    <title>Internet Speed Logger</title>
+</head>
+<body>
+    <h1>Internet Speed Logger</h1>
+    <form action="/start" method="get">
+        <button type="submit" {{ 'disabled' if running else '' }}>Start</button>
+    </form>
+    <form action="/stop" method="get">
+        <button type="submit" {{ '' if running else 'disabled' }}>Stop</button>
+    </form>
+    <form action="/download" method="get">
+        <button type="submit">Download Results</button>
+    </form>
+
+    <h2>Recent Results</h2>
+    <table border="1">
+        <tr>
+            <th>Timestamp</th>
+            <th>Download (Mbps)</th>
+            <th>Upload (Mbps)</th>
+            <th>Ping (ms)</th>
+        </tr>
+        {% for row in results %}
+        <tr>
+            <td>{{ row.Timestamp }}</td>
+            <td>{{ row.Download_Mbps }}</td>
+            <td>{{ row.Upload_Mbps }}</td>
+            <td>{{ row.Ping_ms }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
