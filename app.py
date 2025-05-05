@@ -55,7 +55,7 @@ def run_speed_logger():
             print(f"Logged: {res}")  # Optional: for debugging
             
             # Now sleep to prevent overlapping tests
-            time.sleep(30)  # ← adjust this to your vibe
+            time.sleep(15)  # ← adjust this to your vibe
 
         except Exception as e:
             print("Speedtest error:", e)
