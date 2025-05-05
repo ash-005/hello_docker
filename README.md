@@ -1,4 +1,4 @@
-# Internet Speed Logger 
+# Speed Logger Test
 
 A web-based tool to log your internet speed (download/upload speeds and ping) over time and visualize the data through a graphical representation. The tool runs periodic speed tests and stores the results in a CSV file, which can be downloaded or visualized on a dashboard.
 
