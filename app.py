@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, send_file
+from flask import Flask, render_template, redirect, url_for, send_file, jsonify
 import speedtest
 import csv
 import os
@@ -37,7 +37,7 @@ def run_speed_logger():
             print(f"Logged: {res}")  # Optional: for debugging
             
             # Now sleep to prevent overlapping tests
-            time.sleep(30)  # ← adjust this to your vibe
+            time.sleep(15)  # ← adjust this to your vibe
 
         except Exception as e:
             print("Speedtest error:", e)
@@ -62,7 +62,7 @@ def start():
     return redirect(url_for("index"))
 
 
-@app.route("/stop")
+@app.route("/stop") 
 def stop():
     global is_running
     is_running = False
@@ -71,6 +71,14 @@ def stop():
 @app.route("/download")
 def download():
     return send_file(RESULTS_FILE, as_attachment=True)
+
+
+@app.route("/results")
+def get_results():
+    with open(RESULTS_FILE, newline="") as file:
+        reader = csv.DictReader(file)
+        rows = list(reader)
+    return jsonify(rows[::-1])  # latest first
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

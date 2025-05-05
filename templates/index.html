@@ -1,36 +1,155 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
-    <title>Internet Speed Logger</title>
+  <title>Internet Speed Logger</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f7f7f7; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    button { padding: 10px 20px; font-size: 1rem; cursor: pointer; margin-right: 10px; }
+    #timer { font-weight: bold; margin-top: 10px; }
+  </style>
 </head>
 <body>
-    <h1>Internet Speed Logger</h1>
-    <form action="/start" method="get">
-        <button type="submit" {{ 'disabled' if running else '' }}>Start</button>
-    </form>
-    <form action="/stop" method="get">
-        <button type="submit" {{ '' if running else 'disabled' }}>Stop</button>
-    </form>
-    <form action="/download" method="get">
-        <button type="submit">Download Results</button>
-    </form>
+  <h1>📶 Internet Speed Logger</h1>
+  <button id="start-btn">Start Test</button>
+  <button id="stop-btn">Stop Test</button>
+<a href="/download" download><button>Download CSV</button></a>
 
-    <h2>Recent Results</h2>
-    <table border="1">
-        <tr>
-            <th>Timestamp</th>
-            <th>Download (Mbps)</th>
-            <th>Upload (Mbps)</th>
-            <th>Ping (ms)</th>
-        </tr>
-        {% for row in results %}
-        <tr>
-            <td>{{ row.Timestamp }}</td>
-            <td>{{ row.Download_Mbps }}</td>
-            <td>{{ row.Upload_Mbps }}</td>
-            <td>{{ row.Ping_ms }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+  <button id="stop-btn" style="display: none;">Stop Test</button>
+  <div id="timer"></div>
+  <div id="status" style="margin-top: 10px;"></div>
+
+  <canvas id="speedChart" width="800" height="400" style="margin-top: 20px;"></canvas>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Download (Mbps)</th>
+        <th>Upload (Mbps)</th>
+        <th>Ping (ms)</th>
+      </tr>
+    </thead>
+    <tbody id="results-body">
+      <!-- Results go here -->
+    </tbody>
+  </table>
+
+  <script>
+    let chart;
+    let timerInterval;
+    let timeLeft = 120;
+
+    function renderChart(data) {
+      const labels = data.map(d => d.Timestamp).reverse();
+      const downloadData = data.map(d => parseFloat(d.Download_Mbps)).reverse();
+      const uploadData = data.map(d => parseFloat(d.Upload_Mbps)).reverse();
+
+      const ctx = document.getElementById("speedChart").getContext("2d");
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Download (Mbps)",
+              data: downloadData,
+              borderColor: "rgb(75, 192, 192)",
+              tension: 0.2
+            },
+            {
+              label: "Upload (Mbps)",
+              data: uploadData,
+              borderColor: "rgb(255, 99, 132)",
+              tension: 0.2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Internet Speed Over Time'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    function fetchResults() {
+      $.getJSON("/results", function(data) {
+        let rows = "";
+        data.forEach(row => {
+          rows += `<tr>
+            <td>${row.Timestamp}</td>
+            <td>${row.Download_Mbps}</td>
+            <td>${row.Upload_Mbps}</td>
+            <td>${row.Ping_ms}</td>
+          </tr>`;
+        });
+        $("#results-body").html(rows);
+        renderChart(data);
+      });
+    }
+
+    function startTimer() {
+      $("#stop-btn").show();
+      $("#start-btn").prop("disabled", true);
+
+      timeLeft = 120;
+      updateTimerDisplay();
+
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+        if (timeLeft <= 0) stopTest();
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const mins = Math.floor(timeLeft / 60);
+      const secs = timeLeft % 60;
+      $("#timer").text(`⏳ Time left: ${mins}:${secs.toString().padStart(2, '0')}`);
+    }
+
+    function stopTest() {
+      clearInterval(timerInterval);
+      $("#status").text("Test stopped.");
+      $("#start-btn").prop("disabled", false);
+      $("#stop-btn").hide();
+      $("#timer").text("");
+
+      $.get("/stop", () => {
+        fetchResults();
+      });
+    }
+
+    $("#start-btn").click(function () {
+      $("#status").text("Running speed test...");
+      $.get("/start", function () {
+        $("#status").text("Test started. Logging for 2 minutes...");
+        startTimer();
+      });
+    });
+
+    $("#stop-btn").click(function () {
+      stopTest();
+    });
+
+    fetchResults();
+    setInterval(fetchResults, 10000);
+  </script>
 </body>
 </html>
