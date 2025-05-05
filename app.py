@@ -1,18 +1,32 @@
-from flask import Flask, render_template, redirect, url_for, send_file, jsonify, request
+from flask import Flask, render_template, redirect, url_for, send_file, jsonify
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+import redis
 import speedtest
 import csv
 import os
 import time
 from datetime import datetime
 from threading import Thread
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
+# Initialize Flask app
 app = Flask(__name__)
-limiter = Limiter(app, key_func=get_remote_address)
-
 RESULTS_FILE = "results.csv"
 is_running = False
+
+# Configure Redis for rate limiting
+app.config['REDIS_URL'] = "redis://localhost:6379/0"  # Change this URL if you're using a remote Redis server
+
+# Initialize Redis connection
+r = redis.StrictRedis.from_url(app.config['REDIS_URL'])
+
+# Initialize Limiter with Redis as the storage backend
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=app.config['REDIS_URL']
+)
+
+limiter.init_app(app)
 
 # Ensure results file exists
 if not os.path.exists(RESULTS_FILE):
@@ -54,9 +68,7 @@ def index():
         rows = list(reader)
     return render_template("index.html", results=rows[::-1], running=is_running)
 
-# Apply rate limiting to the /start and /stop routes
 @app.route("/start")
-@limiter.limit("1 per minute")  # Allow 1 request per minute per IP
 def start():
     global is_running
     if not is_running:
@@ -68,7 +80,6 @@ def start():
     return redirect(url_for("index"))
 
 @app.route("/stop") 
-@limiter.limit("1 per minute")  # Allow 1 request per minute per IP
 def stop():
     global is_running
     is_running = False
@@ -86,4 +97,4 @@ def get_results():
     return jsonify(rows[::-1])  # latest first
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000, debug = False)

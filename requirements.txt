@@ -2,3 +2,4 @@ Flask
 Flask-Limiter
 speedtest-cli
 gunicorn
+redis
